@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -11,9 +12,23 @@ import (
 
 // Get semua foto untuk ditampilkan di Gallery Page
 func GetGallery(c *fiber.Ctx) error {
-	var gallery []models.Gallery
-	config.DB.Order("created_at desc").Find(&gallery)
-	return c.JSON(gallery)
+    var gallery []models.Gallery
+    config.DB.Order("created_at desc").Find(&gallery)
+
+    // AMBIL BASE URL DARI ENV
+    baseURL := os.Getenv("APP_URL")
+    if baseURL == "" {
+        baseURL = "https://api-builtby.outsys.space"
+    }
+
+    // Suntikkan URL lengkap ke setiap item gallery
+    for i := range gallery {
+        if gallery[i].ImageURL != "" {
+            gallery[i].ImageURL = fmt.Sprintf("%s/uploads/%s", baseURL, gallery[i].ImageURL)
+        }
+    }
+
+    return c.JSON(gallery)
 }
 
 // Upload foto baru ke Gallery
@@ -39,12 +54,15 @@ func CreateGallery(c *fiber.Ctx) error {
 
 // Hapus foto dari Gallery
 func DeleteGallery(c *fiber.Ctx) error {
-	id := c.Params("id")
-	var gallery models.Gallery
-	if err := config.DB.First(&gallery, id).Error; err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "Foto tidak ditemukan"})
-	}
+    id := c.Params("id")
+    var gallery models.Gallery
+    if err := config.DB.First(&gallery, id).Error; err != nil {
+        return c.Status(404).JSON(fiber.Map{"error": "Foto tidak ditemukan"})
+    }
 
-	config.DB.Delete(&gallery)
-	return c.JSON(fiber.Map{"message": "Foto berhasil dihapus"})
+    // HAPUS FILE FISIKNYA JUGA
+    os.Remove(fmt.Sprintf("./uploads/%s", gallery.ImageURL))
+
+    config.DB.Delete(&gallery)
+    return c.JSON(fiber.Map{"message": "Foto berhasil dihapus"})
 }

@@ -13,9 +13,21 @@ import (
 // --- PROFILE HANDLERS ---
 
 func GetProfile(c *fiber.Ctx) error {
-	var profile models.Profile
-	config.DB.First(&profile)
-	return c.JSON(profile)
+    var profile models.Profile
+    config.DB.First(&profile)
+    
+    // AMBIL URL DARI ENV
+    baseURL := os.Getenv("APP_URL") 
+    if baseURL == "" {
+        baseURL = "https://api-builtby.outsys.space"
+    }
+
+    // Suntikkan URL lengkap hanya saat output JSON
+    if profile.PhotoURL != "" {
+        profile.PhotoURL = fmt.Sprintf("%s/uploads/%s", baseURL, profile.PhotoURL)
+    }
+
+    return c.JSON(profile)
 }
 
 func UpdateProfile(c *fiber.Ctx) error {
@@ -41,10 +53,24 @@ func UpdateProfile(c *fiber.Ctx) error {
 
 // --- PROJECT HANDLERS (CRUD) ---
 
+// --- PROJECT HANDLERS ---
 func GetProjects(c *fiber.Ctx) error {
-	var projects []models.Project
-	config.DB.Find(&projects)
-	return c.JSON(projects)
+    var projects []models.Project
+    config.DB.Find(&projects)
+    
+    baseURL := os.Getenv("APP_URL")
+    if baseURL == "" {
+        baseURL = "https://api-builtby.outsys.space"
+    }
+
+    // Loop untuk menambahkan domain ke setiap thumbnail project
+    for i := range projects {
+        if projects[i].ImageURL != "" {
+            projects[i].ImageURL = fmt.Sprintf("%s/uploads/%s", baseURL, projects[i].ImageURL)
+        }
+    }
+
+    return c.JSON(projects)
 }
 
 func CreateProject(c *fiber.Ctx) error {
